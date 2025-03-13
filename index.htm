@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>دمج صورتين - ثيم الخرائط</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            direction: rtl;
+            background: linear-gradient(135deg, #d9e4dd 0%, #a3bffa 100%);
+            overflow-x: hidden;
+            touch-action: none;
+        }
+        #imageInputs {
+            position: fixed;
+            top: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            width: 90%;
+            max-width: 250px;
+            border: 1px solid #6b7280;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        #imageInputs.hidden {
+            opacity: 0;
+            transform: translateX(-50%) scale(0.95);
+            pointer-events: none;
+        }
+        .input-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            width: 100%;
+        }
+        .input-label {
+            font-size: 12px;
+            color: #2d3748;
+            margin-bottom: 2px;
+            text-align: center;
+        }
+        #container {
+            height: calc(100vh - 140px);
+            width: 100%;
+            position: fixed;
+            top: 70px;
+            left: 0;
+            overflow: hidden;
+            border: 3px solid #4a5568;
+            background: #f7fafc;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            touch-action: none;
+        }
+        .image-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: none;
+            cursor: pointer;
+            user-select: none;
+            transform-origin: center center;
+        }
+        .image-layer.selected::after {
+            content: "✓";
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            font-size: 20px;
+            color: #2f855a;
+            font-weight: bold;
+        }
+        #image1 {
+            z-index: 1000;
+            cursor: default;
+            display: block;
+        }
+        #controls {
+            position: fixed;
+            bottom: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 95%;
+            max-width: 350px;
+            border: 1px solid #6b7280;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        #controls.hidden {
+            opacity: 0;
+            transform: translateX(-50%) scale(0.95);
+            pointer-events: none;
+        }
+        button, input[type="file"], select {
+            margin: 2px;
+            padding: 6px 10px;
+            background: #4a5568;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-size: 11px;
+        }
+        button:hover, select:hover {
+            background: #2d3748;
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 4px;
+            background: #edf2f7;
+            color: #2d3748;
+            border: 1px dashed #a3bffa;
+        }
+        #toggleControls, #toggleImages {
+            position: fixed;
+            z-index: 2000;
+            width: 40px;
+            height: 40px;
+            background: #2f855a;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            transition: background 0.3s, transform 0.3s;
+        }
+        #toggleControls:hover, #toggleImages:hover {
+            background: #276749;
+            transform: scale(1.1);
+        }
+        #toggleControls {
+            bottom: 10px;
+            right: 10px;
+        }
+        #toggleImages {
+            top: 10px;
+            right: 10px;
+        }
+        #gifToggle.active {
+            background: #e53e3e;
+        }
+        #imageSelection {
+            margin-top: 5px;
+            width: 100%;
+            text-align: right;
+        }
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            font-size: 11px;
+            color: #2d3748;
+            margin: 2px 0;
+        }
+        .checkbox-label input {
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="imageInputs">
+        <div class="input-container" id="input1-container">
+            <div class="input-label">رفع طبقة المدن</div>
+            <input type="file" id="imageInput1" accept="image/*" onchange="loadImage(event, 'image1', true)">
+        </div>
+        <div class="input-container" id="input2-container">
+            <div class="input-label">رفع الصور المتحركة</div>
+            <input type="file" id="imageInput2" accept="image/*" multiple onchange="loadMultipleImages(event)">
+        </div>
+    </div>
+    <div id="container">
+        <img id="image1" class="image-layer" alt="صورة 1 (طبقة المدن)" style="z-index: 1000;">
+        <img id="image2" class="image-layer" alt="صورة 2" style="z-index: 1;">
+    </div>
+    <div id="controls">
+        <select id="selectImage">
+            <option value="image1">صورة 1 (طبقة المدن - ثابتة)</option>
+            <option value="image2" selected>صورة 2</option>
+        </select>
+        <button id="gifToggle">تشغيل/إيقاف GIF</button>
+        <select id="gifSpeed">
+            <option value="1000">بطيء</option>
+            <option value="500">متوسط</option>
+            <option value="250">سريع</option>
+            <option value="100" selected>سريع جدًا</option>
+        </select>
+        <button id="downloadGif">تحميل كـ GIF</button>
+        <div id="imageSelection"></div>
+    </div>
+    <button id="toggleControls">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+            <path d="M12 6v12M6 12h12" />
+        </svg>
+    </button>
+    <button id="toggleImages">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+            <circle cx="12" cy="12" r="3" />
+        </svg>
+    </button>
+
+    <script>
+        let images = {
+            'image1': { top: 0, left: 0, scale: 1, rotation: 0, zIndex: 1000, isFixed: true },
+            'image2': { top: 0, left: 0, scale: 1, rotation: 0, zIndex: 1, isFixed: false }
+        };
+        let activeImageId = 'image2';
+        let imageCount = 2;
+        let gifInterval = null;
+        let isGifPlaying = false;
+        let currentGifIndex = 1;
+        let scale = 1;
+        let minScale = 1;
+        let maxScale = 3;
+        let startDistance = 0;
+        let startX = 0, startY = 0;
+        let translateX = 0, translateY = 0;
+        let isDragging = false;
+        let isPinching = false;
+
+        function loadImage(event, imageId, isCitiesLayer = false) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById(imageId);
+                img.src = e.target.result;
+                if (isCitiesLayer) {
+                    img.alt = 'صورة 1 (طبقة المدن)';
+                    images[imageId].zIndex = 1000;
+                    images[imageId].isFixed = true;
+                    img.style.display = 'block';
+                } else {
+                    img.style.display = (imageId === activeImageId) ? 'block' : 'none';
+                }
+                applyTransform(imageId);
+                enableDrag(img);
+                updateImageSelection();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function loadMultipleImages(event) {
+            const files = event.target.files;
+            if (!files || files.length === 0) return;
+
+            Array.from(files).forEach((file, index) => {
+                const newId = index === 0 ? 'image2' : `image${imageCount + 1}`;
+                if (index > 0) {
+                    imageCount++;
+                    images[newId] = { top: 0, left: 0, scale: 1, rotation: 0, zIndex: imageCount, isFixed: false };
+
+                    const newImg = document.createElement('img');
+                    newImg.id = newId;
+                    newImg.className = 'image-layer';
+                    newImg.alt = `صورة ${imageCount}`;
+                    newImg.style.zIndex = imageCount;
+                    document.getElementById('container').appendChild(newImg);
+
+                    const select = document.getElementById('selectImage');
+                    const option = document.createElement('option');
+                    option.value = newId;
+                    option.text = `صورة ${imageCount}`;
+                    select.appendChild(option);
+
+                    newImg.onclick = () => selectImage(newId);
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.getElementById(newId);
+                    img.src = e.target.result;
+                    img.style.display = (newId === activeImageId) ? 'block' : 'none';
+                    applyTransform(newId);
+                    enableDrag(img);
+                    updateImageSelection();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function applyTransform(imageId) {
+            const img = document.getElementById(imageId);
+            if (!img) return;
+            const { top, left, rotation } = images[imageId];
+            img.style.transform = `translate(${left + translateX}px, ${top + translateY}px) scale(${scale}) rotate(${rotation}deg)`;
+            img.style.zIndex = images[imageId].zIndex;
+            if (imageId === activeImageId && !images[imageId].isFixed) {
+                img.classList.add('selected');
+            } else {
+                img.classList.remove('selected');
+            }
+        }
+
+        function selectImage(imageId) {
+            if (images[imageId].isFixed) return;
+            activeImageId = imageId;
+            document.getElementById('selectImage').value = imageId;
+            updateVisibleImages();
+            if (isGifPlaying) {
+                stopGifAnimation();
+                const speed = parseInt(document.getElementById('gifSpeed').value);
+                currentGifIndex = Object.keys(images).filter(id => !images[id].isFixed).indexOf(imageId);
+                startGifAnimation(speed);
+            }
+        }
+
+        function updateVisibleImages() {
+            for (let id in images) {
+                const img = document.getElementById(id);
+                if (img) {
+                    if (images[id].isFixed) {
+                        img.style.display = 'block';
+                    } else {
+                        img.style.display = (id === activeImageId) ? 'block' : 'none';
+                    }
+                    applyTransform(id);
+                }
+            }
+        }
+
+        function enableDrag(img) {
+            if (images[img.id].isFixed) return;
+
+            let startX, startY;
+
+            img.ontouchstart = (e) => {
+                if (img.id !== activeImageId) return;
+                isDragging = true;
+                startX = e.touches[0].clientX - images[img.id].left;
+                startY = e.touches[0].clientY - images[img.id].top;
+                e.preventDefault();
+            };
+
+            document.ontouchmove = (e) => {
+                if (!isDragging) return;
+                images[img.id].left = e.touches[0].clientX - startX;
+                images[img.id].top = e.touches[0].clientY - startY;
+                applyTransform(img.id);
+            };
+
+            document.ontouchend = () => {
+                isDragging = false;
+            };
+        }
+
+        const container = document.getElementById('container');
+
+        container.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                isDragging = true;
+                startX = e.touches[0].clientX - translateX;
+                startY = e.touches[0].clientY - translateY;
+            } else if (e.touches.length === 2) {
+                isPinching = true;
+                isDragging = false;
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                startDistance = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
+            }
+        });
+
+        container.addEventListener('touchmove', (e) => {
+            if (isDragging && e.touches.length === 1) {
+                translateX = e.touches[0].clientX - startX;
+                translateY = e.touches[0].clientY - startY;
+                updateVisibleImages();
+            } else if (isPinching && e.touches.length === 2) {
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                const currentDistance = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
+                const newScale = scale * (currentDistance / startDistance);
+                scale = Math.min(maxScale, Math.max(minScale, newScale));
+                startDistance = currentDistance;
+                updateVisibleImages();
+            }
+            e.preventDefault();
+        });
+
+        container.addEventListener('touchend', () => {
+            isDragging = false;
+            isPinching = false;
+        });
+
+        document.getElementById('selectImage').onchange = function(e) {
+            selectImage(e.target.value);
+        };
+
+        document.getElementById('image2').onclick = () => selectImage('image2');
+
+        document.getElementById('gifToggle').onclick = function() {
+            const toggleButton = this;
+            isGifPlaying = !isGifPlaying;
+
+            if (isGifPlaying) {
+                toggleButton.classList.add('active');
+                const speed = parseInt(document.getElementById('gifSpeed').value);
+                startGifAnimation(speed);
+            } else {
+                toggleButton.classList.remove('active');
+                stopGifAnimation();
+                updateVisibleImages();
+            }
+        };
+
+        function startGifAnimation(speed) {
+            stopGifAnimation();
+            const movableImages = Object.keys(images).filter(id => !images[id].isFixed).sort();
+            if (movableImages.length === 0) return;
+
+            currentGifIndex = movableImages.indexOf(activeImageId);
+
+            gifInterval = setInterval(() => {
+                for (let id of movableImages) {
+                    const img = document.getElementById(id);
+                    if (img) img.style.display = 'none';
+                }
+                activeImageId = movableImages[currentGifIndex];
+                const currentImg = document.getElementById(activeImageId);
+                if (currentImg) {
+                    currentImg.style.display = 'block';
+                    document.getElementById('selectImage').value = activeImageId;
+                    applyTransform(activeImageId);
+                }
+                currentGifIndex = (currentGifIndex + 1) % movableImages.length;
+            }, speed);
+        }
+
+        function stopGifAnimation() {
+            if (gifInterval) {
+                clearInterval(gifInterval);
+                gifInterval = null;
+            }
+        }
+
+        document.getElementById('toggleControls').onclick = function() {
+            const controls = document.getElementById('controls');
+            controls.classList.toggle('hidden');
+        };
+
+        document.getElementById('toggleImages').onclick = function() {
+            const imageInputs = document.getElementById('imageInputs');
+            imageInputs.classList.toggle('hidden');
+        };
+
+        function updateImageSelection() {
+            const selectionDiv = document.getElementById('imageSelection');
+            selectionDiv.innerHTML = '';
+            const movableImages = Object.keys(images).filter(id => !images[id].isFixed);
+            movableImages.forEach(id => {
+                const label = document.createElement('label');
+                label.className = 'checkbox-label';
+                label.innerHTML = `
+                    <input type="checkbox" value="${id}" class="gif-checkbox" checked>
+                    ${document.getElementById(id).alt}
+                `;
+                selectionDiv.appendChild(label);
+            });
+            console.log('تم تحديث قائمة التحديد:', movableImages);
+        }
+
+        document.getElementById('downloadGif').onclick = async function() {
+            alert('جاري إنشاء GIF، قد يستغرق الأمر بضع ثوانٍ...');
+            console.log('تم الضغط على زر تحميل كـ GIF');
+
+            const selectedCheckboxes = document.querySelectorAll('.gif-checkbox:checked');
+            const selectedImages = Array.from(selectedCheckboxes).map(cb => cb.value);
+
+            console.log('الصور المحددة:', selectedImages);
+
+            if (selectedImages.length === 0) {
+                alert('يرجى تحديد صورة واحدة على الأقل لتحميلها كـ GIF!');
+                console.log('لم يتم تحديد أي صور');
+                return;
+            }
+
+            if (typeof GIF === 'undefined') {
+                alert('فشل تحميل مكتبة GIF.js. تأكد من اتصالك بالإنترنت أو استخدم ملفات محلية.');
+                console.error('GIF.js غير متوفر');
+                return;
+            }
+
+            const gif = new GIF({
+                workers: 1, // تقليل عدد العاملين لتحسين الأداء على الجوال
+                quality: 20, // تقليل الجودة لتسريع العملية
+                width: Math.min(300, document.getElementById('container').offsetWidth), // تقليل الحجم
+                height: Math.min(300, document.getElementById('container').offsetHeight),
+                workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
+            });
+
+            const cityLayer = document.getElementById('image1');
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = Math.min(300, document.getElementById('container').offsetWidth);
+            canvas.height = Math.min(300, document.getElementById('container').offsetHeight);
+
+            console.log('أبعاد Canvas:', canvas.width, 'x', canvas.height);
+
+            for (const id of selectedImages) {
+                const img = document.getElementById(id);
+                if (!img || !img.complete || !img.src) {
+                    console.warn(`الصورة ${id} لم تُحمَّل بعد أو غير موجودة`);
+                    continue;
+                }
+
+                await new Promise((resolve) => {
+                    if (img.complete) {
+                        console.log(`الصورة ${id} جاهزة`);
+                        resolve();
+                    } else {
+                        console.log(`جاري تحميل الصورة ${id}`);
+                        img.onload = resolve;
+                    }
+                });
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (cityLayer && cityLayer.src && cityLayer.complete) {
+                    ctx.drawImage(cityLayer, 0, 0, canvas.width, canvas.height);
+                    console.log('تم رسم طبقة المدن');
+                }
+
+                const { left, top } = images[id];
+                ctx.drawImage(img, left + translateX, top + translateY, 
+                            canvas.width * scale, canvas.height * scale);
+                console.log(`تم رسم الصورة ${id} في الموقع:`, left + translateX, top + translateY);
+
+                gif.addFrame(canvas, { delay: parseInt(document.getElementById('gifSpeed').value) });
+                console.log(`تم إضافة إطار للصورة ${id}`);
+            }
+
+            gif.on('finished', function(blob) {
+                console.log('تم إنشاء GIF بنجاح');
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'animated_map.gif';
+                link.click();
+                URL.revokeObjectURL(url);
+                alert('تم تحميل GIF بنجاح!');
+            });
+
+            gif.on('error', function(error) {
+                console.error('خطأ أثناء إنشاء GIF:', error);
+                alert('حدث خطأ أثناء إنشاء ملف GIF. تحقق من الاتصال بالإنترنت أو حاول مرة أخرى.');
+            });
+
+            console.log('جاري إنشاء GIF...');
+            gif.render();
+        };
+
+        // تحديث قائمة التحديد عند تحميل الصور الأولية
+        updateImageSelection();
+    </script>
+</body>
+</html>
