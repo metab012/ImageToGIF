@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>خريطة رادار تفاعلية مع 7 صور متحركة</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        #map { height: 600px; }
+        button { position: absolute; top: 10px; left: 10px; z-index: 1000; padding: 10px; }
+    </style>
+</head>
+<body>
+    <button id="playRadar">تشغيل حركة الرادار</button>
+    <div id="map"></div>
+
+    <script>
+        // إعداد الخريطة مع مركز دقيق
+        var map = L.map('map').setView([26.5641, 43.7856], 7);
+
+        // إضافة طبقة أساسية (OpenStreetMap)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // قائمة بـ 7 صور متحركة (افتراضية)
+        var radarImages = [
+            'https://aws.gamep.gov.sa/geoserver/radar/wms?service=WMS&version=1.1.0&request=GetMap&layers=radar:radar_gassim_filtered_dbz&bbox=4586060.05570135,2756111.58164725,5157995.29201591,3322176.51494978&width=768&height=760&srs=EPSG:3857&format=image/png&transparent=true&time=2025-02-26T00:00:00Z',
+            'https://aws.gamep.gov.sa/geoserver/radar/wms?service=WMS&version=1.1.0&request=GetMap&layers=radar:radar_gassim_filtered_dbz&bbox=4586060.05570135,2756111.58164725,5157995.29201591,3322176.51494978&width=768&height=760&srs=EPSG:3857&format=image/png&transparent=true&time=2025-02-26T01:00:00Z',
+            'https://aws.gamep.gov.sa/geoserver/radar/wms?service=WMS&version=1.1.0&request=GetMap&layers=radar:radar_gassim_filtered_dbz&bbox=4586060.05570135,2756111.58164725,5157995.29201591,3322176.51494978&width=768&height=760&srs=EPSG:3857&format=image/png&transparent=true&time=2025-02-26T02:00:00Z',
+            'https://aws.gamep.gov.sa/geoserver/radar/wms?service=WMS&version=1.1.0&request=GetMap&layers=radar:radar_gassim_filtered_dbz&bbox=4586060.05570135,2756111.58164725,5157995.29201591,3322176.51494978&width=768&height=760&srs=EPSG:3857&format=image/png&transparent=true&time=2025-02-26T03:00:00Z',
+            'https://aws.gamep.gov.sa/geoserver/radar/wms?service=WMS&version=1.1.0&request=GetMap&layers=radar:radar_gassim_filtered_dbz&bbox=4586060.05570135,2756111.58164725,5157995.29201591,3322176.51494978&width=768&height=760&srs=EPSG:3857&format=image/png&transparent=true&time=2025-02-26T04:00:00Z',
+            'https://aws.gamep.gov.sa/geoserver/radar/wms?service=WMS&version=1.1.0&request=GetMap&layers=radar:radar_gassim_filtered_dbz&bbox=4586060.05570135,2756111.58164725,5157995.29201591,3322176.51494978&width=768&height=760&srs=EPSG:3857&format=image/png&transparent=true&time=2025-02-26T05:00:00Z',
+            'https://aws.gamep.gov.sa/geoserver/radar/wms?service=WMS&version=1.1.0&request=GetMap&layers=radar:radar_gassim_filtered_dbz&bbox=4586060.05570135,2756111.58164725,5157995.29201591,3322176.51494978&width=768&height=760&srs=EPSG:3857&format=image/png&transparent=true&time=2025-02-26T06:00:00Z'
+        ];
+
+        // طبقة صورة متحركة بالإحداثيات المصححة
+        var radarLayer = L.imageOverlay(radarImages[0], [
+            [24.1986, 41.2076], // الجنوبية الغربية
+            [28.9297, 46.3636]  // الشمالية الشرقية
+        ]).addTo(map);
+
+        // تحديد منطقة العرض
+        var bounds = [
+            [24.1986, 41.2076],
+            [28.9297, 46.3636]
+        ];
+        map.fitBounds(bounds);
+
+        // متغيرات الرسوم المتحركة
+        var currentFrame = 0;
+        var playing = false;
+
+        // زر تشغيل الحركة
+        document.getElementById('playRadar').addEventListener('click', function() {
+            if (!playing) {
+                playing = true;
+                this.textContent = 'إيقاف';
+                animateRadar();
+            } else {
+                playing = false;
+                this.textContent = 'تشغيل حركة الرادار';
+            }
+        });
+
+        // دالة تشغيل الرسوم المتحركة
+        function animateRadar() {
+            if (!playing) return;
+
+            radarLayer.setUrl(radarImages[currentFrame]);
+            currentFrame = (currentFrame + 1) % radarImages.length;
+
+            setTimeout(animateRadar, 1000); // تكرار كل ثانية
+        }
+    </script>
+</body>
+</html>
